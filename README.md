@@ -113,10 +113,10 @@ For situations requiring manual overrides or multi-workspace management, the CLI
 ```text
 ┌── Select a Workspace Directory ───────────────────────────────────────────┐
 │                                                                           │
-│   ▸  📁  /Users/kevin/Documents/DevLab/Draft/next-app                     │
-│      📁  /Users/kevin/Documents/DevLab/Draft/next-app/app                 │
-│      📁  /Users/kevin/Documents/DevLab/Draft/next-app/components          │
-│      📁  /Users/kevin/Documents/DevLab/Draft/next-app/lib                 │
+│   ▸  📁  /absolute/path/to/my-project                                     │
+│      📁  /absolute/path/to/my-project/app                                 │
+│      📁  /absolute/path/to/my-project/components                          │
+│      📁  /absolute/path/to/my-project/lib                                 │
 │                                                                           │
 │  [↑/↓] Navigate  [Enter] Confirm  [Esc] Go Up  [q] Quit                   │
 └───────────────────────────────────────────────────────────────────────────┘

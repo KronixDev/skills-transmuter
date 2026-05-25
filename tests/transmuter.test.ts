@@ -5,6 +5,8 @@ import { mergeSkills3Way, mergeText3Way } from "../src/core/merge-engine.js";
 import { convertSkill } from "../src/core/converter.js";
 import { PRESETS, hasSkillsDir, predictWorkspaces } from "../src/commands/migrate.js";
 import path from "path";
+import fs from "fs";
+import os from "os";
 
 describe("Skills Transmuter Core Test Suite", () => {
   
@@ -192,17 +194,31 @@ describe("Skills Transmuter Core Test Suite", () => {
   });
 
   it("should detect directories with skills folders correctly", () => {
-    // We can test hasSkillsDir with Draft/next-app which has skills folder
-    const nextAppPath = "/Users/kevin/Documents/DevLab/Draft/next-app";
-    expect(hasSkillsDir(nextAppPath)).toBe(true);
-    expect(hasSkillsDir(path.join(nextAppPath, "src"))).toBe(false);
+    const tempBaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "transmuter-test-"));
+    try {
+      const skillsDir = path.join(tempBaseDir, ".antigravity", "skills");
+      fs.mkdirSync(skillsDir, { recursive: true });
+      expect(hasSkillsDir(tempBaseDir)).toBe(true);
+      expect(hasSkillsDir(path.join(tempBaseDir, "src"))).toBe(false);
+    } finally {
+      fs.rmSync(tempBaseDir, { recursive: true, force: true });
+    }
   });
 
   it("should predict workspaces correctly from project path siblings", () => {
-    const nextAppPath = "/Users/kevin/Documents/DevLab/Draft/next-app";
-    const predicted = predictWorkspaces(nextAppPath);
-    expect(predicted).toContain(nextAppPath);
-    expect(predicted.length).toBeGreaterThan(0);
+    const tempBaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "transmuter-test-"));
+    try {
+      const project1 = path.join(tempBaseDir, "Project1");
+      const project2 = path.join(tempBaseDir, "Project2");
+      fs.mkdirSync(path.join(project1, ".claude", "skills"), { recursive: true });
+      fs.mkdirSync(path.join(project2, ".antigravity", "skills"), { recursive: true });
+      
+      const predicted = predictWorkspaces(project1);
+      expect(predicted).toContain(project1);
+      expect(predicted).toContain(project2);
+    } finally {
+      fs.rmSync(tempBaseDir, { recursive: true, force: true });
+    }
   });
 
 });

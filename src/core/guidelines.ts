@@ -9,7 +9,7 @@ Since Antigravity 2.0 leverages Gemini 3.5 Flash and 3.1 Pro (multimodal, native
 
 ## 1. Absolute Path Resolution
 *   **Never use relative paths** (like \`../script.py\`) inside skill process instructions. Antigravity executes tasks under dynamic, isolated or shared subfolders.
-*   **Rule**: Always query the workspace path or prefix commands with absolute paths (e.g. \`/Users/kevin/Documents/...\`).
+*   **Rule**: Always query the workspace path or prefix commands with absolute paths (e.g. \`/absolute/path/to/workspace/...\`).
 
 ## 2. Multimodal Vision Optimization (\`view_file\`)
 *   Gemini has state-of-the-art native vision. **Do not use OCR libraries (like Tesseract) or custom image processing scripts.**
