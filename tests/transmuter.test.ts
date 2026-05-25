@@ -56,7 +56,7 @@ describe("Skills Transmuter Core Test Suite", () => {
       "model: claude-3-5-sonnet",
       "---",
       "# Sourcing",
-      "First run spawn_agent(rod-signal-hunter) and use read_file(path) to inspect. Please lancer tesseract.",
+      "First run spawn_agent(web-scraper) and use read_file(path) to inspect. Please lancer tesseract.",
     ].join("\n");
 
     const parsed = parseSkillContent(raw);
@@ -64,7 +64,7 @@ describe("Skills Transmuter Core Test Suite", () => {
 
     expect(converted.frontmatter.framework).toBe("antigravity");
     expect(converted.frontmatter.model).toBe("gemini-3.5-flash");
-    expect(converted.sections[1].content).toContain("invoke_subagent(rod-signal-hunter)");
+    expect(converted.sections[1].content).toContain("invoke_subagent(web-scraper)");
     expect(converted.sections[1].content).toContain("view_file(path)");
     expect(converted.sections[1].content).toContain("view_file sur l'image");
   });
@@ -76,7 +76,7 @@ describe("Skills Transmuter Core Test Suite", () => {
       "model: gemini-3.5-flash",
       "---",
       "# Sourcing",
-      "First run invoke_subagent(rod-signal-hunter) and use view_file(path) to inspect.",
+      "First run invoke_subagent(web-scraper) and use view_file(path) to inspect.",
     ].join("\n");
 
     const parsed = parseSkillContent(raw);
@@ -84,7 +84,7 @@ describe("Skills Transmuter Core Test Suite", () => {
 
     expect(converted.frontmatter.framework).toBe("claude");
     expect(converted.frontmatter.model).toBe("claude-3-5-sonnet");
-    expect(converted.sections[1].content).toContain("spawn_agent(rod-signal-hunter)");
+    expect(converted.sections[1].content).toContain("spawn_agent(web-scraper)");
     expect(converted.sections[1].content).toContain("read_file(path)");
   });
 

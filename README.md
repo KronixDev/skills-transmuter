@@ -73,9 +73,9 @@ To enable seamless updates from upstream repositories without overwriting local 
 ```json
 {
   "skills": {
-    "oceane-tiktok-pipeline": {
-      "sourcePath": ".antigravity/skills/oceane-tiktok-pipeline/SKILL.md",
-      "targetPath": "lib/skills/oceane-tiktok-pipeline/SKILL.md",
+    "social-media-analyzer": {
+      "sourcePath": ".antigravity/skills/social-media-analyzer/SKILL.md",
+      "targetPath": "lib/skills/social-media-analyzer/SKILL.md",
       "lastMigration": "2026-05-25T11:08:01Z",
       "sourceHash": "a1b2c3d4...",
       "targetHash": "e5f6g7h8...",
@@ -135,9 +135,9 @@ Track, audit, and compare active workspaces and configurations dynamically. The 
 │                                                                               │
 │  Skill Name             │ Claude Code            │ Codex          │ Antigravity   │
 │ ────────────────────────┼────────────────────────┼────────────────┼────────────── │
-│  candidate-outreach     │ 2026-05-17             │ 2026-05-18     │ ⭐ 2026-05-25  │
-│  client-manager         │ ⭐ 2026-05-17           │ 2026-05-18     │ 2026-05-25    │
-│  rod-signal-hunter      │ 2026-05-17             │ ⭐ 2026-05-19   │ 2026-05-25    │
+|  social-media-analyzer  │ 2026-05-17             │ 2026-05-18     │ ⭐ 2026-05-25  │
+|  database-manager       │ ⭐ 2026-05-17           │ 2026-05-18     │ 2026-05-25    │
+|  web-scraper            │ 2026-05-17             │ ⭐ 2026-05-19   │ 2026-05-25    │
 │                                                                               │
 └───────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -155,7 +155,7 @@ When executed by an AI agent, the tool automatically adapts its behavior to ensu
 
 *   **Safe Plain-Text Markdown Tables**: When the tool detects an agent runtime or non-TTY environment, it formats data into clean, standard Markdown tables instead of complex, ANSI-colored terminal UI components. This makes output easy for LLMs to parse and understand.
 *   **Dry-Run Mode (`--dry-run`)**: Run any command with the `--dry-run` flag to preview changes before they are actually applied. This is critical for agents to validate planned operations without committing changes.
-*   **Skill Filtering (`--skills`)**: Target and execute only specific skills by passing a comma-separated list to the `--skills` flag (e.g., `--skills candidate-outreach,rod-signal-hunter`), reducing context size and overhead.
+*   **Skill Filtering (`--skills`)**: Target and execute only specific skills by passing a comma-separated list to the `--skills` flag (e.g., `--skills social-media-analyzer,web-scraper`), reducing context size and overhead.
 
 ### Semantic Exit Codes
 
