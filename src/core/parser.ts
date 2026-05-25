@@ -77,16 +77,17 @@ export function parseSkillFile(filePath: string): ParsedSkill {
  * @returns A parsed AST representation of the skill content containing frontmatter and sections.
  */
 export function parseSkillContent(content: string): ParsedSkill {
+  const safeContent = content || "";
   const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/;
-  const match = content.match(frontmatterRegex);
+  const match = safeContent.match(frontmatterRegex);
 
   let frontmatter: Record<string, any> = {};
   let frontmatterRaw = "";
-  let rawBody = content;
+  let rawBody = safeContent;
 
   if (match) {
     frontmatterRaw = match[1];
-    rawBody = content.substring(match[0].length);
+    rawBody = safeContent.substring(match[0].length);
     try {
       frontmatter = yaml.parse(frontmatterRaw) || {};
     } catch (e) {
@@ -101,9 +102,15 @@ export function parseSkillContent(content: string): ParsedSkill {
   let currentTitle = "Introduction";
   let currentLevel = 1;
   let currentLines: string[] = [];
+  let inCodeBlock = false;
 
   for (const line of lines) {
-    const headerMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    const codeBlockMatch = line.match(/^\s*(?:```|~~~)/);
+    if (codeBlockMatch) {
+      inCodeBlock = !inCodeBlock;
+    }
+
+    const headerMatch = !inCodeBlock ? line.match(/^(#{1,6})\s+(.*)$/) : null;
     if (headerMatch) {
       // Flush previous section's accumulated content
       if (currentLines.length > 0 || sections.length === 0) {

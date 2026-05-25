@@ -72,13 +72,17 @@ export function convertSkill(
       content = content.replace(/\bwait_for_agent\b/g, "schedule");
 
       // 2. Search / Querying
-      // Ensure we replace 'grep' as an isolated word or function call
-      content = content.replace(/\bgrep\b/g, "grep_search");
+      // Ensure we replace 'grep' as an isolated tool word/call, not a CLI command
+      content = content.replace(/`grep`/g, "`grep_search`");
+      content = content.replace(/\bgrep\s*\(/g, "grep_search(");
+      content = content.replace(/\bgrep\s+tool\b/gi, "grep_search tool");
       // Double replacement cleanup guard
       content = content.replace(/\bgrep_search_search\b/g, "grep_search");
 
       // 3. File Operations
       content = content.replace(/\bread_file\b/g, "view_file");
+      content = content.replace(/`view`/g, "`view_file`");
+      content = content.replace(/\bview\s+tool\b/gi, "view_file tool");
       content = content.replace(/\bview\s*\(/g, "view_file(");
       content = content.replace(/\bwrite_file\b/g, "write_to_file");
 
@@ -93,14 +97,29 @@ export function convertSkill(
       );
     } else {
       // Converting BACK to Claude/Codex from Antigravity
-      // 1. Spawning / Execution
-      content = content.replace(/\binvoke_subagent\b/g, "spawn_agent");
-      content = content.replace(/\bschedule\b/g, "wait_for_agent");
+      
+      // 1. Multimodal & OCR translation back to Claude/Codex (MUST run before replacing view_file with read_file)
+      content = content.replace(
+        /utiliser directement l'outil view_file \(Gemini supporte les formats visuels nativement\)/gi,
+        "utiliser un script python d'ocr"
+      );
+      content = content.replace(
+        /utiliser view_file sur l'image/gi,
+        "lancer tesseract"
+      );
 
-      // 2. Search
+      // 2. Spawning / Execution
+      content = content.replace(/\binvoke_subagent\b/g, "spawn_agent");
+      
+      // Prevent double replacement / incorrect translation of the common word "schedule"
+      content = content.replace(/`schedule`/g, "`wait_for_agent`");
+      content = content.replace(/\bschedule\s*\(/g, "wait_for_agent(");
+      content = content.replace(/\bschedule\s+tool\b/gi, "wait_for_agent tool");
+
+      // 3. Search
       content = content.replace(/\bgrep_search\b/g, "grep");
 
-      // 3. File Operations
+      // 4. File Operations
       content = content.replace(/\bview_file\b/g, "read_file");
       content = content.replace(/\bwrite_to_file\b/g, "write_file");
     }

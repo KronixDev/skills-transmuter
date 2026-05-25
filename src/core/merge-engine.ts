@@ -44,8 +44,8 @@ export function loadLockfile(projectRoot: string): Lockfile {
   if (fs.existsSync(lockPath)) {
     try {
       return JSON.parse(fs.readFileSync(lockPath, "utf-8")) as Lockfile;
-    } catch {
-      // Silently ignore parsing errors and return an empty initialized lockfile
+    } catch (e) {
+      console.warn(`Failed to parse skills-lock.json at ${lockPath}. Using empty initialized lockfile.`, e);
     }
   }
   return { skills: {} };
@@ -91,13 +91,17 @@ export function computeHash(content: string): string {
  * @returns An object containing the merged text and a flag indicating if conflicts are present.
  */
 export function mergeText3Way(base: string, local: string, remote: string): { merged: string; hasConflicts: boolean } {
-  if (local === remote) return { merged: local, hasConflicts: false };
-  if (local === base) return { merged: remote, hasConflicts: false };
-  if (remote === base) return { merged: local, hasConflicts: false };
+  const safeBase = base || "";
+  const safeLocal = local || "";
+  const safeRemote = remote || "";
 
-  const baseLines = base.split(/\r?\n/);
-  const localLines = local.split(/\r?\n/);
-  const remoteLines = remote.split(/\r?\n/);
+  if (safeLocal === safeRemote) return { merged: safeLocal, hasConflicts: false };
+  if (safeLocal === safeBase) return { merged: safeRemote, hasConflicts: false };
+  if (safeRemote === safeBase) return { merged: safeLocal, hasConflicts: false };
+
+  const baseLines = safeBase.split(/\r?\n/);
+  const localLines = safeLocal.split(/\r?\n/);
+  const remoteLines = safeRemote.split(/\r?\n/);
 
   // Attempt fine line-by-line merge if the line counts are identical
   if (baseLines.length === localLines.length && baseLines.length === remoteLines.length) {
@@ -138,9 +142,9 @@ export function mergeText3Way(base: string, local: string, remote: string): { me
   return {
     merged: [
       "<<<<<<< LOCAL (Your modified version)",
-      local.trim(),
+      safeLocal.trim(),
       "=======",
-      remote.trim(),
+      safeRemote.trim(),
       ">>>>>>> REMOTE (Upstream update)",
     ].join("\n"),
     hasConflicts: true,
@@ -183,22 +187,31 @@ export function mergeSkills3Way(
 ): { merged: ParsedSkill; hasConflicts: boolean } {
   let hasConflicts = false;
 
+  // Safeguard against missing/null inputs
+  const safeBase = base || { frontmatter: {}, sections: [], rawBody: "", frontmatterRaw: "" };
+  const safeLocal = local || { frontmatter: {}, sections: [], rawBody: "", frontmatterRaw: "" };
+  const safeRemote = remote || { frontmatter: {}, sections: [], rawBody: "", frontmatterRaw: "" };
+
+  const baseFrontmatter = safeBase.frontmatter || {};
+  const localFrontmatter = safeLocal.frontmatter || {};
+  const remoteFrontmatter = safeRemote.frontmatter || {};
+
   // 1. Merge frontmatter structurally
   const mergedFrontmatter: Record<string, any> = {};
   const allKeys = new Set([
-    ...Object.keys(base.frontmatter || {}),
-    ...Object.keys(local.frontmatter || {}),
-    ...Object.keys(remote.frontmatter || {}),
+    ...Object.keys(baseFrontmatter),
+    ...Object.keys(localFrontmatter),
+    ...Object.keys(remoteFrontmatter),
   ]);
 
   for (const key of allKeys) {
-    const bVal = base.frontmatter?.[key];
-    const lVal = local.frontmatter?.[key];
-    const rVal = remote.frontmatter?.[key];
+    const bVal = baseFrontmatter[key];
+    const lVal = localFrontmatter[key];
+    const rVal = remoteFrontmatter[key];
 
-    const hasBase = base.frontmatter && key in base.frontmatter;
-    const hasLocal = local.frontmatter && key in local.frontmatter;
-    const hasRemote = remote.frontmatter && key in remote.frontmatter;
+    const hasBase = key in baseFrontmatter;
+    const hasLocal = key in localFrontmatter;
+    const hasRemote = key in remoteFrontmatter;
 
     if (hasBase && hasLocal && hasRemote) {
       if (lVal === rVal) {
@@ -254,16 +267,20 @@ export function mergeSkills3Way(
   // 2. Merge Markdown Sections
   const mergedSections: MarkdownSection[] = [];
   
-  const baseSectionsMap = new Map(base.sections.map((s) => [s.title, s]));
-  const localSectionsMap = new Map(local.sections.map((s) => [s.title, s]));
-  const remoteSectionsMap = new Map(remote.sections.map((s) => [s.title, s]));
+  const baseSections = safeBase.sections || [];
+  const localSections = safeLocal.sections || [];
+  const remoteSections = safeRemote.sections || [];
+
+  const baseSectionsMap = new Map(baseSections.map((s) => [s?.title || "", s]));
+  const localSectionsMap = new Map(localSections.map((s) => [s?.title || "", s]));
+  const remoteSectionsMap = new Map(remoteSections.map((s) => [s?.title || "", s]));
 
   // Combine unique titles preserving order of appearance
   const allTitles = Array.from(
     new Set([
-      ...base.sections.map((s) => s.title),
-      ...remote.sections.map((s) => s.title),
-      ...local.sections.map((s) => s.title),
+      ...baseSections.map((s) => s?.title || ""),
+      ...remoteSections.map((s) => s?.title || ""),
+      ...localSections.map((s) => s?.title || ""),
     ])
   );
 

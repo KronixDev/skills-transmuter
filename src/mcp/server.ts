@@ -108,16 +108,35 @@ export function runMcpServer() {
     try {
       if (name === "inspect_workspace") {
         const root = (args as any).projectRoot;
-        const claudeDir = path.join(root, ".claude", "skills");
-        const codexDir = path.join(root, ".agents", "skills");
-        const antiDir = path.join(root, ".antigravity", "skills");
+        if (!root || typeof root !== "string") {
+          throw new Error("Missing or invalid argument 'projectRoot'. Must be a non-empty string.");
+        }
+        const absoluteRoot = path.resolve(root);
+        if (!fs.existsSync(absoluteRoot)) {
+          throw new Error(`Project root directory does not exist: ${absoluteRoot}`);
+        }
+        if (!fs.statSync(absoluteRoot).isDirectory()) {
+          throw new Error(`Project root is not a directory: ${absoluteRoot}`);
+        }
+
+        const claudeDir = path.join(absoluteRoot, ".claude", "skills");
+        const codexDir = path.join(absoluteRoot, ".agents", "skills");
+        const antiDir = path.join(absoluteRoot, ".antigravity", "skills");
 
         const skills = new Set<string>();
         const scan = (d: string) => {
           if (fs.existsSync(d)) {
-            fs.readdirSync(d).forEach((i) => {
-              if (fs.statSync(path.join(d, i)).isDirectory()) skills.add(i);
-            });
+            try {
+              fs.readdirSync(d).forEach((i) => {
+                try {
+                  if (fs.statSync(path.join(d, i)).isDirectory()) skills.add(i);
+                } catch {
+                  // Ignore inaccessible directories
+                }
+              });
+            } catch {
+              // Ignore directory read errors
+            }
           }
         };
         scan(claudeDir);
@@ -145,7 +164,14 @@ export function runMcpServer() {
 
       if (name === "convert_skill") {
         const raw = (args as any).rawContent;
+        if (!raw || typeof raw !== "string") {
+          throw new Error("Missing or invalid argument 'rawContent'. Must be a non-empty string.");
+        }
         const target = (args as any).targetFramework || "antigravity";
+        if (!["antigravity", "claude", "codex"].includes(target)) {
+          throw new Error(`Invalid 'targetFramework': "${target}". Expected one of: antigravity, claude, codex.`);
+        }
+
         const parsed = parseSkillContent(raw);
         const converted = convertSkill(parsed, target);
         const result = stringifySkill(converted);
@@ -162,10 +188,40 @@ export function runMcpServer() {
 
       if (name === "install_skill") {
         const root = (args as any).projectRoot;
-        const sName = (args as any).skillName;
-        const content = (args as any).content;
+        if (!root || typeof root !== "string") {
+          throw new Error("Missing or invalid argument 'projectRoot'. Must be a non-empty string.");
+        }
+        const absoluteRoot = path.resolve(root);
+        if (!fs.existsSync(absoluteRoot)) {
+          throw new Error(`Project root directory does not exist: ${absoluteRoot}`);
+        }
+        if (!fs.statSync(absoluteRoot).isDirectory()) {
+          throw new Error(`Project root is not a directory: ${absoluteRoot}`);
+        }
 
-        const destDir = path.join(root, ".antigravity", "skills", sName);
+        const sName = (args as any).skillName;
+        if (!sName || typeof sName !== "string") {
+          throw new Error("Missing or invalid argument 'skillName'. Must be a non-empty string.");
+        }
+
+        // Prevent Path Traversal
+        const normalizedSkillName = path.normalize(sName);
+        if (
+          normalizedSkillName.includes("..") ||
+          normalizedSkillName.includes("/") ||
+          normalizedSkillName.includes("\\") ||
+          normalizedSkillName === "." ||
+          normalizedSkillName === ""
+        ) {
+          throw new Error(`Invalid 'skillName': "${sName}". It must be a simple folder name and cannot contain path traversal characters.`);
+        }
+
+        const content = (args as any).content;
+        if (!content || typeof content !== "string") {
+          throw new Error("Missing or invalid argument 'content'. Must be a non-empty string.");
+        }
+
+        const destDir = path.join(absoluteRoot, ".antigravity", "skills", normalizedSkillName);
         fs.mkdirSync(destDir, { recursive: true });
 
         const destPath = path.join(destDir, "SKILL.md");
@@ -175,7 +231,7 @@ export function runMcpServer() {
           content: [
             {
               type: "text",
-              text: `Successfully installed skill '${sName}' at ${destPath}`,
+              text: `Successfully installed skill '${normalizedSkillName}' at ${destPath}`,
             },
           ],
         };
@@ -183,6 +239,10 @@ export function runMcpServer() {
 
       if (name === "get_optimized_guidelines") {
         const target = (args as any).targetFramework || "antigravity";
+        if (!["antigravity", "claude", "codex"].includes(target)) {
+          throw new Error(`Invalid 'targetFramework': "${target}". Expected one of: antigravity, claude, codex.`);
+        }
+
         const result = getOptimizationGuidelines(target);
 
         return {

@@ -79,7 +79,7 @@ async function main() {
         "",
         chalk.bold("Options for 'migrate':"),
         `  ${chalk.bold("-d, --dir <path>")}            Target workspace path.`,
-        `  ${chalk.bold("-p, --preset <name>")}          Quick scan preset (${chalk.dim("DevLab")}, ${chalk.dim("Documents")}).`,
+        `  ${chalk.bold("-p, --preset <name>")}          Quick scan preset (${chalk.dim("Developer")}, ${chalk.dim("Documents")}).`,
         `  ${chalk.bold("-t, --target <framework>")}     Target framework: ${chalk.dim("antigravity")}, ${chalk.dim("claude")}, ${chalk.dim("codex")}.`,
         `  ${chalk.bold("-s, --strategy <policy>")}      Migration strategy: ${chalk.dim("freshest")}, ${chalk.dim("force-codex")}, ${chalk.dim("force-claude")}, ${chalk.dim("force-antigravity")}.`,
         `  ${chalk.bold("-y, --yes")}                    Silent execution. Skips TUI prompts and confirmations.`,
@@ -90,7 +90,7 @@ async function main() {
         "",
         chalk.bold("Examples:"),
         "  skills-transmuter migrate -d ./my-project -t antigravity -s freshest -y",
-        "  skills-transmuter migrate -p DevLab -d Draft/next-app -t antigravity -y",
+        "  skills-transmuter migrate -p Developer -d my-next-app -t antigravity -y",
         "  skills-transmuter migrate -d ./my-project -l json",
         "",
       ].join("\n")

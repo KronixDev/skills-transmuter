@@ -222,7 +222,7 @@ function resolveHome(pStr: string): string {
  * Preset directory shortcuts mapped to absolute paths.
  */
 export const PRESETS: Record<string, string> = {
-  DevLab: resolveHome("~/Documents/DevLab"),
+  Developer: resolveHome("~/Developer"),
   Documents: resolveHome("~/Documents"),
 };
 
@@ -454,7 +454,7 @@ async function browseDirectory(startDir: string): Promise<string> {
  * (auto-detected workspaces, current directory, preset, browser, manual entry).
  * 
  * @param projectRoot - The current project root directory.
- * @param presetOpt - An optional preset name (e.g. "DevLab").
+ * @param presetOpt - An optional preset name (e.g. "Developer").
  * @returns A promise that resolves to the selected absolute workspace directory path.
  */
 async function getWorkspacePathInteractive(projectRoot: string, presetOpt?: string): Promise<string> {
@@ -475,7 +475,7 @@ async function getWorkspacePathInteractive(projectRoot: string, presetOpt?: stri
       { value: "current", label: `📂 Current Directory (${projectRoot})` },
       { value: "browse", label: "🔍 Interactive Browser (browse dirs)" },
       { value: "manual", label: "⌨️  Enter custom path manually..." },
-      { value: "DevLab", label: `📂 Preset: DevLab (${PRESETS.DevLab})` },
+      { value: "Developer", label: `📂 Preset: Developer (${PRESETS.Developer})` },
       { value: "Documents", label: `📂 Preset: Documents (${PRESETS.Documents})` }
     );
 
@@ -1169,6 +1169,11 @@ async function confirmMigration(
     }
     console.log("");
 
+    if (!process.stdin.isTTY) {
+      console.log(`ℹ️ Non-interactive agent environment detected. Auto-confirming migration plan.`);
+      return selectedSkills;
+    }
+
     const confirmAnswer = await askQuestionPlain(`❓ Confirm migration of these ${selectedSkills.length} selected skill(s) into ${targetFramework}? (y/N): `);
     const confirmed = confirmAnswer.trim().toLowerCase() === "y" || confirmAnswer.trim().toLowerCase() === "yes";
     return confirmed ? selectedSkills : null;
@@ -1329,6 +1334,39 @@ export async function runMigrateCommand(projectRoot: string, options: MigrateOpt
   const isAgent = isAgentRunning();
   const autoConfirm = !!options.yes;
 
+  // Validation options
+  if (options.target && !["antigravity", "claude", "codex"].includes(options.target)) {
+    logger.error(`Invalid target framework: "${options.target}". Expected one of: antigravity, claude, codex`);
+    process.exit(1);
+  }
+
+  if (options.strategy && !["freshest", "force-codex", "force-claude", "force-antigravity"].includes(options.strategy)) {
+    logger.error(`Invalid strategy: "${options.strategy}". Expected one of: freshest, force-codex, force-claude, force-antigravity`);
+    process.exit(1);
+  }
+
+  if (options.logFormat && !["plain", "json"].includes(options.logFormat)) {
+    logger.error(`Invalid log format: "${options.logFormat}". Expected one of: plain, json`);
+    process.exit(1);
+  }
+
+  if (options.preset && !PRESETS[options.preset]) {
+    logger.error(`Invalid preset: "${options.preset}". Expected one of: ${Object.keys(PRESETS).join(", ")}`);
+    process.exit(1);
+  }
+
+  if (options.dir) {
+    const resolvedDir = path.resolve(projectRoot, options.dir);
+    if (!fs.existsSync(resolvedDir)) {
+      logger.error(`Directory specified by --dir does not exist: "${options.dir}"`);
+      process.exit(1);
+    }
+    if (!fs.statSync(resolvedDir).isDirectory()) {
+      logger.error(`Path specified by --dir is not a directory: "${options.dir}"`);
+      process.exit(1);
+    }
+  }
+
   let selectedRoot = "";
   try {
     selectedRoot = await resolveWorkspacePath(projectRoot, options, isAgent, autoConfirm, logger);
@@ -1340,155 +1378,160 @@ export async function runMigrateCommand(projectRoot: string, options: MigrateOpt
     process.exit(1);
   }
 
-  const filteredSkillNames = scanSkills(selectedRoot);
-
-  if (filteredSkillNames.size === 0) {
-    if (autoConfirm) {
-      logger.warn(`No skills found in workspace: ${selectedRoot}`);
-    } else if (isAgent) {
-      console.log(`⚠️  No skills found in workspace: ${selectedRoot}`);
-    } else {
-      p.note(chalk.yellow(`No skills found in workspace:\n${selectedRoot}`));
-      const wantTemplates = await p.confirm({
-        message: "Would you like to install basic productivity templates?",
-      });
-      if (wantTemplates) {
-        p.outro("Please run command: template install <template_name>");
-      }
-    }
-    return;
-  }
-
-  const lockfile = loadLockfile(selectedRoot);
-  const matrix = buildAuditMatrix(selectedRoot, filteredSkillNames, logger, autoConfirm);
-
-  displayAuditMatrix(matrix, isAgent, autoConfirm);
-
-  let strategy: MigrationStrategy;
-  let targetFramework: TargetFramework;
-
   try {
-    strategy = await determineStrategy(options, isAgent, autoConfirm);
-    targetFramework = await determineTarget(options, isAgent, autoConfirm);
-  } catch {
-    p.outro("Operation cancelled.");
-    return;
-  }
+    const filteredSkillNames = scanSkills(selectedRoot);
 
-  if (isAgent && !autoConfirm) {
-    console.log(`⚙️  Target Framework: **${targetFramework}** | Strategy: **${strategy}** (use -t/--target and -s/--strategy to change)`);
-  }
-
-  const targetDirMap = {
-    antigravity: path.join(selectedRoot, ".antigravity", "skills"),
-    claude: path.join(selectedRoot, ".claude", "skills"),
-    codex: path.join(selectedRoot, ".agents", "skills"),
-  };
-  const selectedTargetDir = targetDirMap[targetFramework];
-
-  const syncCandidates = evaluateSyncCandidates(
-    selectedRoot,
-    matrix,
-    strategy,
-    targetFramework,
-    selectedTargetDir,
-    lockfile
-  );
-
-  const nonUpToDate = syncCandidates.filter((s) => s.status !== "UP_TO_DATE");
-
-  if (nonUpToDate.length === 0) {
-    if (autoConfirm) {
-      logger.info(`All skills in target ${targetFramework} are already fully synchronized!`);
-    } else if (isAgent) {
-      console.log(`✨ All skills in target **${targetFramework}** are already fully synchronized!`);
-    } else {
-      p.outro(chalk.green(`All skills in target ${targetFramework} are already fully synchronized! ✨`));
+    if (filteredSkillNames.size === 0) {
+      if (autoConfirm) {
+        logger.warn(`No skills found in workspace: ${selectedRoot}`);
+      } else if (isAgent) {
+        console.log(`⚠️  No skills found in workspace: ${selectedRoot}`);
+      } else {
+        p.note(chalk.yellow(`No skills found in workspace:\n${selectedRoot}`));
+        const wantTemplates = await p.confirm({
+          message: "Would you like to install basic productivity templates?",
+        });
+        if (wantTemplates) {
+          p.outro("Please run command: template install <template_name>");
+        }
+      }
+      return;
     }
-    return;
-  }
 
-  const selectedSkills = await determineSelectedSkills(options, syncCandidates, nonUpToDate, autoConfirm, logger);
-  if (selectedSkills.length === 0) {
-    return;
-  }
+    const lockfile = loadLockfile(selectedRoot);
+    const matrix = buildAuditMatrix(selectedRoot, filteredSkillNames, logger, autoConfirm);
 
-  if (options.dryRun) {
-    handleDryRun(selectedSkills, syncCandidates, targetFramework, autoConfirm, logger);
-    return;
-  }
+    displayAuditMatrix(matrix, isAgent, autoConfirm);
 
-  const confirmedSkills = await confirmMigration(
-    selectedSkills,
-    syncCandidates,
-    nonUpToDate,
-    targetFramework,
-    isAgent,
-    autoConfirm
-  );
+    let strategy: MigrationStrategy;
+    let targetFramework: TargetFramework;
 
-  if (!confirmedSkills) {
-    if (isAgent) {
-      console.log("❌ Migration cancelled by user/agent.");
-      process.exit(2);
-    } else {
+    try {
+      strategy = await determineStrategy(options, isAgent, autoConfirm);
+      targetFramework = await determineTarget(options, isAgent, autoConfirm);
+    } catch {
       p.outro("Operation cancelled.");
+      return;
     }
-    return;
-  }
 
-  const spinner = (autoConfirm || isAgent) ? null : p.spinner();
-  if (spinner) {
-    spinner.start("Transmuting skills...");
-  } else {
-    if (!autoConfirm) {
-      console.log(`\n⚡ Transmuting ${confirmedSkills.length} skill(s) into ${targetFramework}...`);
+    if (isAgent && !autoConfirm) {
+      console.log(`⚙️  Target Framework: **${targetFramework}** | Strategy: **${strategy}** (use -t/--target and -s/--strategy to change)`);
     }
-  }
 
-  const { syncCount, conflictCount } = await executeMigration(
-    selectedTargetDir,
-    confirmedSkills,
-    syncCandidates,
-    targetFramework,
-    lockfile,
-    logger,
-    isAgent,
-    autoConfirm
-  );
+    const targetDirMap = {
+      antigravity: path.join(selectedRoot, ".antigravity", "skills"),
+      claude: path.join(selectedRoot, ".claude", "skills"),
+      codex: path.join(selectedRoot, ".agents", "skills"),
+    };
+    const selectedTargetDir = targetDirMap[targetFramework];
 
-  saveLockfile(selectedRoot, lockfile);
+    const syncCandidates = evaluateSyncCandidates(
+      selectedRoot,
+      matrix,
+      strategy,
+      targetFramework,
+      selectedTargetDir,
+      lockfile
+    );
 
-  if (spinner) {
-    spinner.stop("Transmutation complete.");
-    if (syncCount > 0) {
-      p.note(chalk.green(`Successfully processed and converted ${syncCount} skill(s).`));
+    const nonUpToDate = syncCandidates.filter((s) => s.status !== "UP_TO_DATE");
+
+    if (nonUpToDate.length === 0) {
+      if (autoConfirm) {
+        logger.info(`All skills in target ${targetFramework} are already fully synchronized!`);
+      } else if (isAgent) {
+        console.log(`✨ All skills in target **${targetFramework}** are already fully synchronized!`);
+      } else {
+        p.outro(chalk.green(`All skills in target ${targetFramework} are already fully synchronized! ✨`));
+      }
+      return;
     }
-    if (conflictCount > 0) {
-      p.note(
-        chalk.red(
-          `${conflictCount} skill(s) completed with conflicts.\nSearch for "<<<<<<< LOCAL" markers inside files to resolve manually.`
-        )
-      );
+
+    const selectedSkills = await determineSelectedSkills(options, syncCandidates, nonUpToDate, autoConfirm, logger);
+    if (selectedSkills.length === 0) {
+      return;
     }
-    p.outro(chalk.bold.green("Workspace migration completed successfully! 🎉"));
-  } else {
-    if (autoConfirm) {
-      logger.syncCompleted({ processed: syncCount + conflictCount, conflicts: conflictCount });
+
+    if (options.dryRun) {
+      handleDryRun(selectedSkills, syncCandidates, targetFramework, autoConfirm, logger);
+      return;
+    }
+
+    const confirmedSkills = await confirmMigration(
+      selectedSkills,
+      syncCandidates,
+      nonUpToDate,
+      targetFramework,
+      isAgent,
+      autoConfirm
+    );
+
+    if (!confirmedSkills) {
+      if (isAgent) {
+        console.log("❌ Migration cancelled by user/agent.");
+        process.exit(2);
+      } else {
+        p.outro("Operation cancelled.");
+      }
+      return;
+    }
+
+    const spinner = (autoConfirm || isAgent) ? null : p.spinner();
+    if (spinner) {
+      spinner.start("Transmuting skills...");
     } else {
-      console.log(`\n🎉 Workspace migration completed successfully!`);
-      console.log(`- Processed & converted: ${syncCount} skill(s)`);
-      if (conflictCount > 0) {
-        console.log(`⚠️  ${conflictCount} skill(s) completed with conflicts.`);
-        console.log(`   Search for "<<<<<<< LOCAL" markers inside files to resolve manually.`);
+      if (!autoConfirm) {
+        console.log(`\n⚡ Transmuting ${confirmedSkills.length} skill(s) into ${targetFramework}...`);
       }
     }
-  }
 
-  if (conflictCount > 0) {
-    process.exit(3);
-  } else {
-    process.exit(0);
+    const { syncCount, conflictCount } = await executeMigration(
+      selectedTargetDir,
+      confirmedSkills,
+      syncCandidates,
+      targetFramework,
+      lockfile,
+      logger,
+      isAgent,
+      autoConfirm
+    );
+
+    saveLockfile(selectedRoot, lockfile);
+
+    if (spinner) {
+      spinner.stop("Transmutation complete.");
+      if (syncCount > 0) {
+        p.note(chalk.green(`Successfully processed and converted ${syncCount} skill(s).`));
+      }
+      if (conflictCount > 0) {
+        p.note(
+          chalk.red(
+            `${conflictCount} skill(s) completed with conflicts.\nSearch for "<<<<<<< LOCAL" markers inside files to resolve manually.`
+          )
+        );
+      }
+      p.outro(chalk.bold.green("Workspace migration completed successfully! 🎉"));
+    } else {
+      if (autoConfirm) {
+        logger.syncCompleted({ processed: syncCount + conflictCount, conflicts: conflictCount });
+      } else {
+        console.log(`\n🎉 Workspace migration completed successfully!`);
+        console.log(`- Processed & converted: ${syncCount} skill(s)`);
+        if (conflictCount > 0) {
+          console.log(`⚠️  ${conflictCount} skill(s) completed with conflicts.`);
+          console.log(`   Search for "<<<<<<< LOCAL" markers inside files to resolve manually.`);
+        }
+      }
+    }
+
+    if (conflictCount > 0) {
+      process.exit(3);
+    } else {
+      process.exit(0);
+    }
+  } catch (error) {
+    logger.error(`Migration failed: ${(error as Error).message}`);
+    process.exit(1);
   }
 }
 

@@ -104,7 +104,7 @@ The CLI employs a smart multi-tiered resolution algorithm to automatically detec
 
 1.  **Current Working Directory (`./`)**: Inspects the folder from which the command was run for standard project markers (e.g., `.antigravity/`, `.agents/`, or `.claude/`).
 2.  **Parent Directory Traversal (`../`)**: Recursively traverses upward through parent folders until a project root is located.
-3.  **Home Folder Presets (`~/Documents/DevLab`, etc.)**: Falls back to user-defined workspace presets or standard config paths in the home directory if no local workspace is resolved.
+3.  **Home Folder Presets (`~/Developer`, etc.)**: Falls back to user-defined workspace presets or standard config paths in the home directory if no local workspace is resolved.
 
 ### TUI Folder Browser
 
@@ -135,9 +135,9 @@ Track, audit, and compare active workspaces and configurations dynamically. The 
 │                                                                               │
 │  Skill Name             │ Claude Code            │ Codex          │ Antigravity   │
 │ ────────────────────────┼────────────────────────┼────────────────┼────────────── │
-|  social-media-analyzer  │ 2026-05-17             │ 2026-05-18     │ ⭐ 2026-05-25  │
-|  database-manager       │ ⭐ 2026-05-17           │ 2026-05-18     │ 2026-05-25    │
-|  web-scraper            │ 2026-05-17             │ ⭐ 2026-05-19   │ 2026-05-25    │
+│  social-media-analyzer  │ 2026-05-17             │ 2026-05-18     │ ⭐ 2026-05-25  │
+│  database-manager       │ ⭐ 2026-05-17           │ 2026-05-18     │ 2026-05-25    │
+│  web-scraper            │ 2026-05-17             │ ⭐ 2026-05-19   │ 2026-05-25    │
 │                                                                               │
 └───────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -209,7 +209,7 @@ Commands:
 
 Options for 'migrate':
   -d, --dir <path>            Target workspace path.
-  -p, --preset <name>          Quick scan preset (DevLab, Documents).
+  -p, --preset <name>          Quick scan preset (Developer, Documents).
   -t, --target <framework>     Target framework: antigravity, claude, codex.
   -s, --strategy <policy>      Migration strategy: freshest, force-codex, force-claude, force-antigravity.
   -y, --yes                    Silent execution. Skips TUI prompts and confirmations.
@@ -278,7 +278,7 @@ Once connected, the agent will have access to the following tools:
 ### Getting Started
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/your-username/skills-transmuter.git
+    git clone https://github.com/KronixDev/skills-transmuter.git
     cd skills-transmuter
     ```
 2.  Install dependencies:
@@ -294,6 +294,18 @@ Once connected, the agent will have access to the following tools:
     npm run test
     ```
     *(Powered by **Vitest** for quick, concurrent tests).*
+
+---
+
+## Contributing
+
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) to learn how to set up the project locally and submit pull requests.
+
+---
+
+## Security
+
+If you discover a vulnerability or security issue, please review our [Security Policy](SECURITY.md) for instructions on how to report it privately.
 
 ---
 

@@ -37,7 +37,7 @@ To set up the project locally for development:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-username/skills-transmuter.git
+   git clone https://github.com/KronixDev/skills-transmuter.git
    cd skills-transmuter
    ```
 

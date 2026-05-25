@@ -35,6 +35,29 @@ describe("Skills Transmuter Core Test Suite", () => {
     expect(recreated).toContain("- Output HTML report.");
   });
 
+  it("should ignore headings inside code blocks when parsing", () => {
+    const raw = [
+      "---",
+      "name: code-block-test",
+      "---",
+      "# Main Section",
+      "Here is some code:",
+      "```bash",
+      "# This is a comment starting with hash",
+      "echo 'hello'",
+      "```",
+    ].join("\n");
+
+    const parsed = parseSkillContent(raw);
+    
+    // We expect 2 sections ("Introduction" and "Main Section"), not a separate section for the comment
+    expect(parsed.sections).toHaveLength(2);
+    expect(parsed.sections[0].title).toBe("Introduction");
+    expect(parsed.sections[1].title).toBe("Main Section");
+    expect(parsed.sections[1].content).toContain("# This is a comment starting with hash");
+  });
+
+
   it("should calculate semantic richness index (SRI)", () => {
     const raw = [
       "---",
@@ -189,7 +212,7 @@ describe("Skills Transmuter Core Test Suite", () => {
 
   it("should resolve presets configuration properly", () => {
     expect(PRESETS).toBeDefined();
-    expect(PRESETS.DevLab).toContain("DevLab");
+    expect(PRESETS.Developer).toContain("Developer");
     expect(PRESETS.Documents).toContain("Documents");
   });
 
@@ -219,6 +242,52 @@ describe("Skills Transmuter Core Test Suite", () => {
     } finally {
       fs.rmSync(tempBaseDir, { recursive: true, force: true });
     }
+  });
+
+  it("should safely convert grep, view, and schedule without touching CLI commands or common words", () => {
+    const raw = [
+      "---",
+      "framework: claude",
+      "---",
+      "- Call `grep` to find instances.",
+      "- Run `grep -rn 'target' .` in shell.",
+      "- We will `view` the file using view(path).",
+      "- The user has a busy schedule.",
+      "- Use the `schedule` tool to wait.",
+      "- Please utiliser un script python d'ocr.",
+    ].join("\n");
+
+    const parsed = parseSkillContent(raw);
+    const convertedToGemini = convertSkill(parsed, "antigravity");
+
+    const contentGemini = convertedToGemini.sections[0].content;
+    expect(convertedToGemini.frontmatter.framework).toBe("antigravity");
+    // grep tool is converted
+    expect(contentGemini).toContain("Call `grep_search` to find instances.");
+    // grep CLI is NOT converted
+    expect(contentGemini).toContain("Run `grep -rn 'target' .` in shell.");
+    // view tool is converted
+    expect(contentGemini).toContain("We will `view_file` the file using view_file(path).");
+    // schedule word remains untouched
+    expect(contentGemini).toContain("The user has a busy schedule.");
+    // OCR is converted
+    expect(contentGemini).toContain("Please utiliser directement l'outil view_file (Gemini supporte les formats visuels nativement).");
+
+    // Let's convert it BACK to Claude
+    const convertedBack = convertSkill(convertedToGemini, "claude");
+    const contentClaude = convertedBack.sections[0].content;
+
+    expect(convertedBack.frontmatter.framework).toBe("claude");
+    // grep tool converted back
+    expect(contentClaude).toContain("Call `grep` to find instances.");
+    // grep CLI untouched
+    expect(contentClaude).toContain("Run `grep -rn 'target' .` in shell.");
+    // schedule tool converted back
+    expect(contentClaude).toContain("Use the `wait_for_agent` tool to wait.");
+    // schedule word untouched
+    expect(contentClaude).toContain("The user has a busy schedule.");
+    // OCR converted back
+    expect(contentClaude).toContain("Please utiliser un script python d'ocr.");
   });
 
 });
